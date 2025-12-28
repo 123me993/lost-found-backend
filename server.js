@@ -21,14 +21,26 @@ function saveItems(items) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(items, null, 2));
 }
 
-// Get all items
+// GET all items + auto delete after 50 days
 app.get("/items", (req, res) => {
-  res.json(readItems());
+  const items = readItems();
+  const now = Date.now();
+
+  const filtered = items.filter(item => {
+    return now - item.createdAt < 50 * 24 * 60 * 60 * 1000;
+  });
+
+  if (filtered.length !== items.length) {
+    saveItems(filtered);
+  }
+
+  res.json(filtered);
 });
 
-// Add item
+// ADD item
 app.post("/items", (req, res) => {
   const { name, location, category, desc, image } = req.body;
+
   if (!name || !location || !category || !image) {
     return res.status(400).json({ message: "Missing fields" });
   }
@@ -49,25 +61,25 @@ app.post("/items", (req, res) => {
   res.json({ message: "Item added" });
 });
 
-// Update item
+// UPDATE item (status)
 app.put("/items/:id", (req, res) => {
   const items = readItems();
-  const index = items.find(i => i.id == req.params.id);
-  if (!index) return res.status(404).json({ message: "Not found" });
+  const item = items.find(i => i.id == req.params.id);
 
-  Object.assign(index, req.body);
+  if (!item) return res.status(404).json({ message: "Not found" });
+
+  Object.assign(item, req.body);
   saveItems(items);
   res.json({ message: "Item updated" });
 });
 
-// Delete item
+// DELETE item
 app.delete("/items/:id", (req, res) => {
   const items = readItems().filter(i => i.id != req.params.id);
   saveItems(items);
   res.json({ message: "Item deleted" });
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log("Server running");
 });
